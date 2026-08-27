@@ -1,0 +1,171 @@
+name: Form Shield
+slug: form-shield
+type: plugin
+version: 1.0.0
+description: Protects forms locally with a honeypot, Cap CAPTCHA, timing checks, and rate limiting.
+icon: shield
+author:
+  name: Digitalfaktor Services
+  url: https://www.digitalfaktor.at
+homepage: https://github.com/digitalfaktor/grav-plugin-form-shield
+bugs: https://github.com/digitalfaktor/grav-plugin-form-shield/issues
+keywords: form, spam, captcha, privacy
+license: MIT
+compatibility:
+  grav: ['2.0']
+
+dependencies:
+  - { name: grav, version: '>=2.0.0' }
+  - { name: form, version: '>=9.1.23' }
+  - { name: php, version: '>=8.1' }
+
+form:
+  validation: strict
+  fields:
+    enabled:
+      type: toggle
+      label: Plugin status
+      highlight: 1
+      default: 1
+      options:
+        1: Enabled
+        0: Disabled
+      validate:
+        type: bool
+
+    routes:
+      type: pages
+      label: Protected form routes
+      help: Leave empty to protect every form. Select pages only to protect forms on those pages.
+      multiple: true
+      show_all: true
+      show_modular: false
+      show_root: true
+      show_fullpath: true
+      validate:
+        type: array
+
+    captcha_section:
+      type: section
+      title: Honeypot and CAPTCHA
+      underline: true
+
+    honeypot.enabled:
+      type: toggle
+      label: Enable honeypot
+      help: Adds a hidden field that standard spambots usually complete. Existing honeypot fields are preserved.
+      highlight: 1
+      default: 1
+      options:
+        1: Enabled
+        0: Disabled
+      validate:
+        type: bool
+
+    captcha.enabled:
+      type: toggle
+      label: Enable local Cap CAPTCHA
+      help: Verifies browser work in the background without loading an external service.
+      highlight: 1
+      default: 1
+      options:
+        1: Enabled
+        0: Disabled
+      validate:
+        type: bool
+
+    captcha.mode:
+      type: select
+      label: Cap CAPTCHA mode
+      default: invisible
+      options:
+        invisible: Invisible
+        checkbox: Checkbox
+      validate:
+        type: text
+
+    time_section:
+      type: section
+      title: Timing check
+      underline: true
+
+    time_check.enabled:
+      type: toggle
+      label: Enable timing check
+      help: Rejects forms submitted implausibly soon after they have loaded.
+      highlight: 1
+      default: 1
+      options:
+        1: Enabled
+        0: Disabled
+      validate:
+        type: bool
+
+    time_check.minimum_seconds:
+      type: number
+      label: Minimum time before submission in seconds
+      default: 5
+      validate:
+        type: number
+        min: 0
+        max: 60
+
+    rate_section:
+      type: section
+      title: Rate limit
+      underline: true
+
+    rate_limit.enabled:
+      type: toggle
+      label: Enable rate limit
+      help: Limits submissions per IP address within a time window.
+      highlight: 1
+      default: 1
+      options:
+        1: Enabled
+        0: Disabled
+      validate:
+        type: bool
+
+    rate_limit.maximum_attempts:
+      type: number
+      label: Maximum submissions
+      default: 3
+      validate:
+        type: number
+        min: 1
+        max: 100
+
+    rate_limit.window_seconds:
+      type: number
+      label: Time window in seconds
+      default: 600
+      validate:
+        type: number
+        min: 60
+        max: 86400
+
+    response_section:
+      type: section
+      title: Security failure response
+      underline: true
+
+    failure_response.mode:
+      type: select
+      label: Response mode
+      help: Silent returns the form without a security message. Display message shows the configured message at the form.
+      default: message
+      options:
+        silent: Silent
+        message: Display message
+      validate:
+        type: text
+
+    failure_response.message:
+      type: text
+      label: Failure message
+      help: This general message is shown only when response mode is set to Display message.
+      default: 'We could not process your submission. Please try again.'
+      size: large
+      validate:
+        type: text

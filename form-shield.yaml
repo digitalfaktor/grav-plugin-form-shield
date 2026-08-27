@@ -1,0 +1,23 @@
+enabled: true
+routes: []
+
+honeypot:
+  enabled: true
+
+captcha:
+  enabled: true
+  mode: invisible
+
+time_check:
+  enabled: true
+  minimum_seconds: 5
+  maximum_age_seconds: 7200
+
+rate_limit:
+  enabled: true
+  maximum_attempts: 3
+  window_seconds: 600
+
+failure_response:
+  mode: message
+  message: 'We could not process your submission. Please try again.'
