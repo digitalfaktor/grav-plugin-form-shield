@@ -20,4 +20,4 @@ rate_limit:
 
 failure_response:
   mode: message
-  message: 'We could not process your submission. Please try again.'
+  message: ''

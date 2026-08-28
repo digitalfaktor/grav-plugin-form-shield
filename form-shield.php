@@ -4,12 +4,15 @@ namespace Grav\Plugin;
 
 use Grav\Common\Data\ValidationException;
 use Grav\Common\Plugin;
+use Grav\Common\Security;
+use Grav\Common\Uri;
 use Grav\Plugin\Form\Form;
 use RocketTheme\Toolbox\Event\Event;
 
 class FormShieldPlugin extends Plugin
 {
-    private const SESSION_KEY = 'form_shield_started';
+    private const CAPTCHA_FIELD = 'form_shield_captcha';
+    private const TIME_FIELD = 'form_shield_time';
 
     private array $failedForms = [];
 
@@ -28,7 +31,6 @@ class FormShieldPlugin extends Plugin
 
         $this->enable([
             'onFormPageHeaderProcessed' => ['onFormPageHeaderProcessed', 100],
-            'onFormInitialized' => ['onFormInitialized', 0],
             'onFormValidationProcessed' => ['onFormValidationProcessed', 100],
             'onFormValidationError' => ['onFormValidationError', 100],
         ]);
@@ -36,6 +38,10 @@ class FormShieldPlugin extends Plugin
 
     public function onFormPageHeaderProcessed(Event $event): void
     {
+        if ($this->isAdminRequest()) {
+            return;
+        }
+
         $page = $event['page'];
         $route = $page->route();
         if (!is_string($route) || $route === '' || !$this->isRouteProtected($route)) {
@@ -44,14 +50,14 @@ class FormShieldPlugin extends Plugin
 
         $header = $event['header'];
         if (is_array($header->form ?? null)) {
-            $header->form = $this->protectForm($header->form);
+            $header->form = $this->protectForm($header->form, $route);
         }
 
         $forms = $header->forms ?? null;
         if (is_array($forms)) {
             foreach ($forms as $name => $form) {
                 if (is_array($form)) {
-                    $forms[$name] = $this->protectForm($form);
+                    $forms[$name] = $this->protectForm($form, $route);
                 }
             }
 
@@ -59,15 +65,23 @@ class FormShieldPlugin extends Plugin
         }
     }
 
-    private function protectForm(array $form): array
+    private function protectForm(array $form, string $route): array
     {
         $form['fields'] = is_array($form['fields'] ?? null) ? $form['fields'] : [];
         if ($this->configValue('honeypot.enabled', true) && !$this->hasFieldOfType($form['fields'], ['honeypot'])) {
             $form['fields'][] = [
-                'name' => 'form_shield_website',
+                'name' => $this->honeypotFieldName(),
                 'type' => 'honeypot',
-                'label' => 'Website',
+                'label' => $this->translate('HONEYPOT_LABEL'),
                 'validate' => ['required' => false],
+            ];
+        }
+
+        if ($this->configValue('time_check.enabled', true) && !$this->hasFieldNamed($form['fields'], self::TIME_FIELD)) {
+            $form['fields'][] = [
+                'name' => self::TIME_FIELD,
+                'type' => 'hidden',
+                'default' => $this->createTimeToken($route),
             ];
         }
 
@@ -79,11 +93,12 @@ class FormShieldPlugin extends Plugin
                 }
 
                 $form['fields'][] = [
-                    'name' => 'form_shield_captcha',
+                    'name' => self::CAPTCHA_FIELD,
                     'type' => 'captcha',
                     'provider' => 'cap',
                     'mode' => $this->configValue('captcha.mode', 'invisible'),
-                    'captcha_not_validated' => 'The security check could not be completed. Please try again.',
+                    'captcha_not_validated' => $this->translate('CAPTCHA_FAILURE'),
+                    'form_shield' => true,
                 ];
             }
 
@@ -96,31 +111,6 @@ class FormShieldPlugin extends Plugin
         return $form;
     }
 
-    public function onFormInitialized(Event $event): void
-    {
-        if (!$this->configValue('time_check.enabled', true) || $this->isFormSubmission()) {
-            return;
-        }
-
-        $form = $event['form'];
-        if (!$form instanceof Form || !$this->isFormProtected($form)) {
-            return;
-        }
-
-        $entries = $this->getStartedForms();
-        $now = time();
-        $maximumAge = max(60, (int)$this->configValue('time_check.maximum_age_seconds', 7200));
-
-        foreach ($entries as $id => $startedAt) {
-            if (!is_int($startedAt) || $startedAt < $now - $maximumAge) {
-                unset($entries[$id]);
-            }
-        }
-
-        $entries[$form->getUniqueId()] = $now;
-        $this->grav['session']->{self::SESSION_KEY} = $entries;
-    }
-
     public function onFormValidationProcessed(Event $event): void
     {
         $form = $event['form'];
@@ -128,7 +118,6 @@ class FormShieldPlugin extends Plugin
             return;
         }
 
-        $this->validateHoneypot($form);
         $this->validateMinimumSubmissionTime($form);
         $this->validateRateLimit($form);
     }
@@ -140,8 +129,8 @@ class FormShieldPlugin extends Plugin
             return;
         }
 
-        $isCapFailure = ($event['provider'] ?? null) === 'cap';
-        $isShieldFailure = isset($this->failedForms[$form->getUniqueId()]) || $isCapFailure;
+        $isShieldFailure = isset($this->failedForms[$form->getUniqueId()])
+            || $this->isShieldCaptchaFailure($form, $event['provider'] ?? null);
         if (!$isShieldFailure) {
             return;
         }
@@ -166,32 +155,32 @@ class FormShieldPlugin extends Plugin
         $form->messages = [];
     }
 
-    private function validateHoneypot(Form $form): void
-    {
-        foreach ($form->fields() as $field) {
-            if (($field['type'] ?? null) === 'honeypot' && !empty($form->value($field['name']))) {
-                $this->rejectSubmission($form);
-            }
-        }
-    }
-
     private function validateMinimumSubmissionTime(Form $form): void
     {
         if (!$this->configValue('time_check.enabled', true)) {
             return;
         }
 
-        $entries = $this->getStartedForms();
-        $startedAt = $entries[$form->getUniqueId()] ?? null;
-        unset($entries[$form->getUniqueId()]);
-        $this->grav['session']->{self::SESSION_KEY} = $entries;
+        $token = $form->value(self::TIME_FIELD);
+        if (!is_string($token) || preg_match('/^(\d{10})\.([a-f0-9]{64})$/', $token, $matches) !== 1) {
+            $this->grav['log']->warning('Form Shield rejected an invalid timing token.');
+            $this->rejectSubmission($form);
+        }
 
-        if (!is_int($startedAt)) {
-            return;
+        $issuedAt = (int)$matches[1];
+        $signature = $matches[2];
+        $route = $form->getPage()->route();
+        $now = time();
+        $maximumAge = max(60, (int)$this->configValue('time_check.maximum_age_seconds', 7200));
+        $expected = $this->signTimeToken((string)$issuedAt, $route);
+
+        if ($issuedAt > $now || $issuedAt < $now - $maximumAge || !hash_equals($expected, $signature)) {
+            $this->grav['log']->warning('Form Shield rejected an invalid timing token.');
+            $this->rejectSubmission($form);
         }
 
         $minimumSeconds = max(0, (int)$this->configValue('time_check.minimum_seconds', 5));
-        if (time() - $startedAt < $minimumSeconds) {
+        if ($now - $issuedAt < $minimumSeconds) {
             $this->grav['log']->warning('Form Shield rejected a form submitted too quickly.');
             $this->rejectSubmission($form);
         }
@@ -203,8 +192,8 @@ class FormShieldPlugin extends Plugin
             return;
         }
 
-        $ipAddress = $_SERVER['REMOTE_ADDR'] ?? '';
-        if (!is_string($ipAddress) || $ipAddress === '') {
+        $ipAddress = Uri::ip();
+        if ($ipAddress === 'UNKNOWN') {
             return;
         }
 
@@ -218,13 +207,15 @@ class FormShieldPlugin extends Plugin
         $attempts = array_values(array_filter($attempts, static function ($timestamp) use ($now, $windowSeconds): bool {
             return is_int($timestamp) && $timestamp > $now - $windowSeconds;
         }));
-        $attempts[] = $now;
-        $cache->set($cacheKey, $attempts, $windowSeconds);
 
-        if (count($attempts) > $maximumAttempts) {
+        if (count($attempts) >= $maximumAttempts) {
+            $cache->set($cacheKey, $attempts, $windowSeconds);
             $this->grav['log']->warning('Form Shield rejected a rate-limited form submission.');
             $this->rejectSubmission($form);
         }
+
+        $attempts[] = $now;
+        $cache->set($cacheKey, $attempts, $windowSeconds);
     }
 
     private function rejectSubmission(Form $form): void
@@ -236,10 +227,9 @@ class FormShieldPlugin extends Plugin
 
     private function failureMessage(): string
     {
-        return (string)$this->configValue(
-            'failure_response.message',
-            'We could not process your submission. Please try again.'
-        );
+        $message = trim((string)$this->configValue('failure_response.message', ''));
+
+        return $message !== '' ? $message : $this->translate('FAILURE_MESSAGE');
     }
 
     private function isFormProtected(Form $form): bool
@@ -249,6 +239,23 @@ class FormShieldPlugin extends Plugin
         } catch (\LogicException $exception) {
             return false;
         }
+    }
+
+    private function isAdminRequest(): bool
+    {
+        if ($this->isAdmin()) {
+            return true;
+        }
+
+        $admin2Route = trim((string)$this->grav['config']->get('plugins.admin2.route', ''), '/');
+        if ($admin2Route === '') {
+            return false;
+        }
+
+        // Admin2 serves its SPA before the API proxy is registered.
+        $route = trim($this->grav['uri']->route(), '/');
+
+        return $route === $admin2Route || str_starts_with($route, $admin2Route . '/');
     }
 
     private function isRouteProtected(string $route): bool
@@ -295,6 +302,32 @@ class FormShieldPlugin extends Plugin
         return false;
     }
 
+    private function hasFieldNamed(array $fields, string $name): bool
+    {
+        foreach ($fields as $field) {
+            if (is_array($field) && ($field['name'] ?? null) === $name) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private function isShieldCaptchaFailure(Form $form, $provider): bool
+    {
+        if ($provider !== 'cap') {
+            return false;
+        }
+
+        foreach ($form->fields() as $field) {
+            if (($field['name'] ?? null) === self::CAPTCHA_FIELD && ($field['form_shield'] ?? false) === true) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     private function hasCaptchaAction(array $process): bool
     {
         foreach ($process as $action => $params) {
@@ -310,16 +343,26 @@ class FormShieldPlugin extends Plugin
         return false;
     }
 
-    private function getStartedForms(): array
+    private function createTimeToken(string $route): string
     {
-        $entries = $this->grav['session']->{self::SESSION_KEY} ?? [];
+        $issuedAt = (string)time();
 
-        return is_array($entries) ? $entries : [];
+        return $issuedAt . '.' . $this->signTimeToken($issuedAt, $route);
     }
 
-    private function isFormSubmission(): bool
+    private function signTimeToken(string $issuedAt, string $route): string
     {
-        return !empty($_POST['form-nonce']);
+        return hash_hmac('sha256', $issuedAt . '|' . $this->normalizeRoute($route), Security::getNonceKey());
+    }
+
+    private function honeypotFieldName(): string
+    {
+        return 'form_shield_' . substr(hash_hmac('sha256', 'honeypot', Security::getNonceKey()), 0, 12);
+    }
+
+    private function translate(string $key): string
+    {
+        return $this->grav['language']->translate('PLUGIN_FORM_SHIELD.' . $key);
     }
 
     private function normalizeRoute(string $route): string

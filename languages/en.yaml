@@ -1,0 +1,34 @@
+PLUGIN_FORM_SHIELD:
+  GENERAL: General
+  PLUGIN_STATUS: Plugin status
+  ENABLED: Enabled
+  DISABLED: Disabled
+  PROTECTED_FORM_ROUTES: Protected form routes
+  PROTECTED_FORM_ROUTES_HELP: Leave empty to protect every form. Add routes only to protect forms on those pages.
+  HONEYPOT_AND_CAPTCHA: Honeypot and CAPTCHA
+  ENABLE_HONEYPOT: Enable honeypot
+  ENABLE_HONEYPOT_HELP: Adds a hidden field that standard spambots usually complete. Existing honeypot fields are preserved.
+  ENABLE_LOCAL_CAPTCHA: Enable local Cap CAPTCHA
+  ENABLE_LOCAL_CAPTCHA_HELP: Adds the local Cap CAPTCHA provided by the Form plugin.
+  CAPTCHA_MODE: Cap CAPTCHA mode
+  CAPTCHA_MODE_INVISIBLE: Invisible
+  CAPTCHA_MODE_CHECKBOX: Checkbox
+  TIMING_CHECK: Timing check
+  ENABLE_TIMING_CHECK: Enable timing check
+  ENABLE_TIMING_CHECK_HELP: Rejects forms submitted implausibly soon after they have loaded.
+  MINIMUM_TIME: Minimum time before submission in seconds
+  RATE_LIMIT: Rate limit
+  ENABLE_RATE_LIMIT: Enable rate limit
+  ENABLE_RATE_LIMIT_HELP: Limits submissions per IP address within a time window.
+  MAXIMUM_SUBMISSIONS: Maximum submissions
+  TIME_WINDOW: Time window in seconds
+  SECURITY_FAILURE_RESPONSE: Security failure response
+  RESPONSE_MODE: Response mode
+  RESPONSE_MODE_HELP: Silent returns the form without a security message. Display message shows the configured message at the form.
+  RESPONSE_MODE_SILENT: Silent
+  RESPONSE_MODE_MESSAGE: Display message
+  FAILURE_MESSAGE_LABEL: Failure message
+  FAILURE_MESSAGE_HELP: Leave empty to use the translated default message.
+  FAILURE_MESSAGE: We could not process your submission. Please try again.
+  CAPTCHA_FAILURE: The security check could not be completed. Please try again.
+  HONEYPOT_LABEL: Website

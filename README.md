@@ -1,16 +1,16 @@
 # Form Shield
 
-Form Shield is a privacy-conscious spam-protection plugin for Grav forms. It layers several local checks so that no third-party CAPTCHA provider is required (GDPR Compliant).
+Form Shield is a privacy-conscious spam-protection plugin for Grav forms. It layers several local checks without relying on a third-party CAPTCHA service (GDPR Compliant).
 
 ## Features
 
 - Automatically adds a honeypot field to protected forms.
 - Adds the local Cap proof-of-work CAPTCHA supplied by the Grav Form plugin.
-- Rejects forms submitted unrealistically quickly after rendering.
+- Uses a signed timestamp to reject forms submitted unrealistically quickly after rendering.
 - Limits submissions per IP address within a configurable time window.
 - Preserves manually configured CAPTCHA and honeypot fields instead of adding duplicates.
 
-Cap runs locally in the visitor's browser and validates against the website itself.
+Cap runs locally in the visitor's browser and is provided and validated by the Form plugin.
 
 ## Requirements
 
@@ -28,7 +28,7 @@ routes:
   - /contact
 ```
 
-Leave `routes` empty to protect every Grav form on the site. Select one or more pages only when you want to limit protection to forms on those pages. Clear the Grav cache after changing routes so the form definition is rebuilt.
+Leave `routes` empty to protect every Grav form on the site. Add one or more routes only when you want to limit protection to forms on those pages. Clear the Grav cache after changing routes so the form definition is rebuilt.
 
 ## Configuration
 
@@ -52,14 +52,14 @@ rate_limit:
 
 failure_response:
   mode: message # message or silent
-  message: 'We could not process your submission. Please try again.'
+  message: ''
 ```
 
-The honeypot, CAPTCHA, and validation action are injected for every form by default, or only for forms on selected pages when `routes` is populated. This includes both `form` and `forms` page definitions. If a protected form already defines a CAPTCHA or honeypot, Form Shield leaves that field in place and does not duplicate it.
+The honeypot, Cap CAPTCHA field, and validation action are injected for every form by default, or only for forms on selected pages when `routes` is populated. This includes both `form` and `forms` page definitions. If a protected form already defines a CAPTCHA or honeypot, Form Shield leaves that field in place and does not duplicate it.
 
 ## Security failure response
 
-Use `failure_response.mode: message` to show the configured general message at the form when Form Shield rejects a submission. This is the default and is appropriate when a real visitor could need to retry a CAPTCHA check.
+Use `failure_response.mode: message` to show the configured general message at the form when Form Shield rejects a submission. Leave `failure_response.message` empty to use the translated default message. This is the default and is appropriate when a real visitor could need to retry a CAPTCHA check.
 
 Use `failure_response.mode: silent` to return the form without displaying a security-specific message. The rejected submission is never processed or emailed. Normal form validation messages, such as a missing required email address, are unaffected.
 
@@ -67,7 +67,9 @@ Themes that provide their own form layout should render Grav's `partials/form-me
 
 ## Privacy notes
 
-The timing check stores a form start timestamp in the visitor's server-side session. The rate limiter stores only a SHA-256 hash of the IP address and recent timestamps in Grav's cache. Neither check sends data to a third party.
+The timing check uses a signed timestamp in the form and does not write to the visitor's server-side session. The rate limiter stores only a SHA-256 hash of the IP address and recent timestamps in Grav's cache. Neither check sends data to a third party.
+
+When the site runs behind a reverse proxy or CDN, configure Grav's `system.http_x_forwarded` setting for the header your proxy controls. Form Shield uses Grav's guarded client IP resolver and never trusts forwarded headers directly.
 
 Each site operator remains responsible for documenting the relevant processing in their privacy notice and selecting an appropriate retention period. This plugin is not legal advice.
 

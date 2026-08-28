@@ -1,8 +1,8 @@
 name: Form Shield
 slug: form-shield
 type: plugin
-version: 1.0.0
-description: Protects forms locally with a honeypot, Cap CAPTCHA, timing checks, and rate limiting.
+version: 1.0.1
+description: Adds local, layered spam protection to Grav forms.
 icon: shield
 author:
   name: Digitalfaktor Services
@@ -22,150 +22,152 @@ dependencies:
 form:
   validation: strict
   fields:
-    enabled:
-      type: toggle
-      label: Plugin status
-      highlight: 1
-      default: 1
-      options:
-        1: Enabled
-        0: Disabled
-      validate:
-        type: bool
+    general_section:
+      type: section
+      title: PLUGIN_FORM_SHIELD.GENERAL
+      underline: true
+      fields:
+        enabled:
+          type: toggle
+          label: PLUGIN_FORM_SHIELD.PLUGIN_STATUS
+          highlight: 1
+          default: 1
+          options:
+            1: PLUGIN_FORM_SHIELD.ENABLED
+            0: PLUGIN_FORM_SHIELD.DISABLED
+          validate:
+            type: bool
 
-    routes:
-      type: pages
-      label: Protected form routes
-      help: Leave empty to protect every form. Select pages only to protect forms on those pages.
-      multiple: true
-      show_all: true
-      show_modular: false
-      show_root: true
-      show_fullpath: true
-      validate:
-        type: array
+        routes:
+          type: array
+          value_only: true
+          label: PLUGIN_FORM_SHIELD.PROTECTED_FORM_ROUTES
+          help: PLUGIN_FORM_SHIELD.PROTECTED_FORM_ROUTES_HELP
+          placeholder_value: /contact
+          validate:
+            type: array
 
     captcha_section:
       type: section
-      title: Honeypot and CAPTCHA
+      title: PLUGIN_FORM_SHIELD.HONEYPOT_AND_CAPTCHA
       underline: true
+      fields:
+        honeypot.enabled:
+          type: toggle
+          label: PLUGIN_FORM_SHIELD.ENABLE_HONEYPOT
+          help: PLUGIN_FORM_SHIELD.ENABLE_HONEYPOT_HELP
+          highlight: 1
+          default: 1
+          options:
+            1: PLUGIN_FORM_SHIELD.ENABLED
+            0: PLUGIN_FORM_SHIELD.DISABLED
+          validate:
+            type: bool
 
-    honeypot.enabled:
-      type: toggle
-      label: Enable honeypot
-      help: Adds a hidden field that standard spambots usually complete. Existing honeypot fields are preserved.
-      highlight: 1
-      default: 1
-      options:
-        1: Enabled
-        0: Disabled
-      validate:
-        type: bool
+        captcha.enabled:
+          type: toggle
+          label: PLUGIN_FORM_SHIELD.ENABLE_LOCAL_CAPTCHA
+          help: PLUGIN_FORM_SHIELD.ENABLE_LOCAL_CAPTCHA_HELP
+          highlight: 1
+          default: 1
+          options:
+            1: PLUGIN_FORM_SHIELD.ENABLED
+            0: PLUGIN_FORM_SHIELD.DISABLED
+          validate:
+            type: bool
 
-    captcha.enabled:
-      type: toggle
-      label: Enable local Cap CAPTCHA
-      help: Verifies browser work in the background without loading an external service.
-      highlight: 1
-      default: 1
-      options:
-        1: Enabled
-        0: Disabled
-      validate:
-        type: bool
-
-    captcha.mode:
-      type: select
-      label: Cap CAPTCHA mode
-      default: invisible
-      options:
-        invisible: Invisible
-        checkbox: Checkbox
-      validate:
-        type: text
+        captcha.mode:
+          type: select
+          label: PLUGIN_FORM_SHIELD.CAPTCHA_MODE
+          default: invisible
+          options:
+            invisible: PLUGIN_FORM_SHIELD.CAPTCHA_MODE_INVISIBLE
+            checkbox: PLUGIN_FORM_SHIELD.CAPTCHA_MODE_CHECKBOX
+          validate:
+            type: text
 
     time_section:
       type: section
-      title: Timing check
+      title: PLUGIN_FORM_SHIELD.TIMING_CHECK
       underline: true
+      fields:
+        time_check.enabled:
+          type: toggle
+          label: PLUGIN_FORM_SHIELD.ENABLE_TIMING_CHECK
+          help: PLUGIN_FORM_SHIELD.ENABLE_TIMING_CHECK_HELP
+          highlight: 1
+          default: 1
+          options:
+            1: PLUGIN_FORM_SHIELD.ENABLED
+            0: PLUGIN_FORM_SHIELD.DISABLED
+          validate:
+            type: bool
 
-    time_check.enabled:
-      type: toggle
-      label: Enable timing check
-      help: Rejects forms submitted implausibly soon after they have loaded.
-      highlight: 1
-      default: 1
-      options:
-        1: Enabled
-        0: Disabled
-      validate:
-        type: bool
-
-    time_check.minimum_seconds:
-      type: number
-      label: Minimum time before submission in seconds
-      default: 5
-      validate:
-        type: number
-        min: 0
-        max: 60
+        time_check.minimum_seconds:
+          type: number
+          label: PLUGIN_FORM_SHIELD.MINIMUM_TIME
+          default: 5
+          validate:
+            type: number
+            min: 0
+            max: 60
 
     rate_section:
       type: section
-      title: Rate limit
+      title: PLUGIN_FORM_SHIELD.RATE_LIMIT
       underline: true
+      fields:
+        rate_limit.enabled:
+          type: toggle
+          label: PLUGIN_FORM_SHIELD.ENABLE_RATE_LIMIT
+          help: PLUGIN_FORM_SHIELD.ENABLE_RATE_LIMIT_HELP
+          highlight: 1
+          default: 1
+          options:
+            1: PLUGIN_FORM_SHIELD.ENABLED
+            0: PLUGIN_FORM_SHIELD.DISABLED
+          validate:
+            type: bool
 
-    rate_limit.enabled:
-      type: toggle
-      label: Enable rate limit
-      help: Limits submissions per IP address within a time window.
-      highlight: 1
-      default: 1
-      options:
-        1: Enabled
-        0: Disabled
-      validate:
-        type: bool
+        rate_limit.maximum_attempts:
+          type: number
+          label: PLUGIN_FORM_SHIELD.MAXIMUM_SUBMISSIONS
+          default: 3
+          validate:
+            type: number
+            min: 1
+            max: 100
 
-    rate_limit.maximum_attempts:
-      type: number
-      label: Maximum submissions
-      default: 3
-      validate:
-        type: number
-        min: 1
-        max: 100
-
-    rate_limit.window_seconds:
-      type: number
-      label: Time window in seconds
-      default: 600
-      validate:
-        type: number
-        min: 60
-        max: 86400
+        rate_limit.window_seconds:
+          type: number
+          label: PLUGIN_FORM_SHIELD.TIME_WINDOW
+          default: 600
+          validate:
+            type: number
+            min: 60
+            max: 86400
 
     response_section:
       type: section
-      title: Security failure response
+      title: PLUGIN_FORM_SHIELD.SECURITY_FAILURE_RESPONSE
       underline: true
+      fields:
+        failure_response.mode:
+          type: select
+          label: PLUGIN_FORM_SHIELD.RESPONSE_MODE
+          help: PLUGIN_FORM_SHIELD.RESPONSE_MODE_HELP
+          default: message
+          options:
+            silent: PLUGIN_FORM_SHIELD.RESPONSE_MODE_SILENT
+            message: PLUGIN_FORM_SHIELD.RESPONSE_MODE_MESSAGE
+          validate:
+            type: text
 
-    failure_response.mode:
-      type: select
-      label: Response mode
-      help: Silent returns the form without a security message. Display message shows the configured message at the form.
-      default: message
-      options:
-        silent: Silent
-        message: Display message
-      validate:
-        type: text
-
-    failure_response.message:
-      type: text
-      label: Failure message
-      help: This general message is shown only when response mode is set to Display message.
-      default: 'We could not process your submission. Please try again.'
-      size: large
-      validate:
-        type: text
+        failure_response.message:
+          type: text
+          label: PLUGIN_FORM_SHIELD.FAILURE_MESSAGE_LABEL
+          help: PLUGIN_FORM_SHIELD.FAILURE_MESSAGE_HELP
+          placeholder: PLUGIN_FORM_SHIELD.FAILURE_MESSAGE
+          size: large
+          validate:
+            type: text
