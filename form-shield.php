@@ -31,6 +31,7 @@ class FormShieldPlugin extends Plugin
 
         $this->enable([
             'onFormPageHeaderProcessed' => ['onFormPageHeaderProcessed', 100],
+            'onFormInitialized' => ['onFormInitialized', 0],
             'onFormValidationProcessed' => ['onFormValidationProcessed', 100],
             'onFormValidationError' => ['onFormValidationError', 100],
         ]);
@@ -81,7 +82,7 @@ class FormShieldPlugin extends Plugin
             $form['fields'][] = [
                 'name' => self::TIME_FIELD,
                 'type' => 'hidden',
-                'default' => $this->createTimeToken($route),
+                'default' => '',
             ];
         }
 
@@ -111,6 +112,17 @@ class FormShieldPlugin extends Plugin
         return $form;
     }
 
+    public function onFormInitialized(Event $event): void
+    {
+        $form = $event['form'];
+        if (!$form instanceof Form || $this->isAdminRequest()
+            || !$this->configValue('time_check.enabled', true) || !$this->isFormProtected($form)) {
+            return;
+        }
+
+        $form->setData(self::TIME_FIELD, $this->createTimeToken($form->getPage()->route()));
+    }
+
     public function onFormValidationProcessed(Event $event): void
     {
         $form = $event['form'];
@@ -130,7 +142,8 @@ class FormShieldPlugin extends Plugin
         }
 
         $isShieldFailure = isset($this->failedForms[$form->getUniqueId()])
-            || $this->isShieldCaptchaFailure($form, $event['provider'] ?? null);
+            || $this->isShieldCaptchaFailure($form, $event['provider'] ?? null)
+            || $this->isShieldHoneypotFailure($form);
         if (!$isShieldFailure) {
             return;
         }
@@ -200,7 +213,7 @@ class FormShieldPlugin extends Plugin
         $windowSeconds = max(60, (int)$this->configValue('rate_limit.window_seconds', 600));
         $maximumAttempts = max(1, (int)$this->configValue('rate_limit.maximum_attempts', 3));
         $cache = $this->grav['cache']->getSimpleCache();
-        $cacheKey = 'form-shield-rate-' . hash('sha256', $ipAddress);
+        $cacheKey = 'form-shield-rate-' . hash('sha256', $ipAddress . '|' . $this->normalizeRoute($form->getPage()->route()));
         $now = time();
         $attempts = $cache->get($cacheKey, []);
         $attempts = is_array($attempts) ? $attempts : [];
@@ -321,6 +334,22 @@ class FormShieldPlugin extends Plugin
 
         foreach ($form->fields() as $field) {
             if (($field['name'] ?? null) === self::CAPTCHA_FIELD && ($field['form_shield'] ?? false) === true) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private function isShieldHoneypotFailure(Form $form): bool
+    {
+        $fieldName = $this->honeypotFieldName();
+        if (empty($form->value($fieldName))) {
+            return false;
+        }
+
+        foreach ($form->fields() as $field) {
+            if (($field['name'] ?? null) === $fieldName && ($field['type'] ?? null) === 'honeypot') {
                 return true;
             }
         }

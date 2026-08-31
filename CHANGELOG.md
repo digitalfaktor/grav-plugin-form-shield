@@ -1,5 +1,15 @@
 # Changelog
 
+# 1.0.2
+
+## 2026-08-31
+
+1. [](#improved)
+   * Generate timing tokens for each form instance instead of caching them with the form definition.
+   * Scope rate limits to the submitting IP address and form route.
+   * Apply the configured failure response to Form Shield honeypot failures.
+   * Skip Form Shield processing in CLI requests.
+
 # 1.0.1
 
 ## 2026-08-28
