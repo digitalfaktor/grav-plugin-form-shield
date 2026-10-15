@@ -22,6 +22,8 @@ Cap runs locally in the visitor's browser and is provided and validated by the F
 
 Copy the `form-shield` directory into `user/plugins/` or install the packaged ZIP through Grav's Plugin Admin. By default, every form is protected.
 
+Installations and updates using Grav's GPM package installer automatically clear the Grav cache through this plugin's `install.php` hooks. After manually copying files (including FTP or Git deployments), run `bin/grav clear-cache` from the Grav root; copying files does not execute installer hooks.
+
 ```yaml
 enabled: true
 routes:
@@ -64,6 +66,8 @@ Use `failure_response.mode: message` to show the configured general message at t
 Use `failure_response.mode: silent` to return the form without displaying a security-specific message. The rejected submission is never processed or emailed. Normal form validation messages, such as a missing required email address, are unaffected.
 
 Themes that provide their own form layout should render Grav's `partials/form-messages.html.twig` partial and use the active `form` variable after a submission. Grav's default form template already does both.
+
+Custom form templates and AJAX handlers must also render and submit the injected hidden `data[form_shield_time]` field. Render it using Grav's hidden-field template so its value comes from the active form. A missing field is rejected as an invalid timing token; the timestamp created while handling the POST request cannot replace it. If only some pages fail, check their form markup and the submitted request payload for this field.
 
 ## Privacy notes
 

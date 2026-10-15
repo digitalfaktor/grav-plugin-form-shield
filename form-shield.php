@@ -174,7 +174,14 @@ class FormShieldPlugin extends Plugin
             return;
         }
 
-        $token = $form->value(self::TIME_FIELD);
+        // Form data also contains defaults set during onFormInitialized, which
+        // runs on POST too. Only trust the submitted values: a missing hidden
+        // field must not fall back to a freshly generated timestamp.
+        $submitted = $form->getValues();
+        $data = $submitted->get('data');
+        $token = is_array($data) && $data !== []
+            ? ($data[self::TIME_FIELD] ?? null)
+            : $submitted->get(self::TIME_FIELD);
         if (!is_string($token) || preg_match('/^(\d{10})\.([a-f0-9]{64})$/', $token, $matches) !== 1) {
             $this->grav['log']->warning('Form Shield rejected an invalid timing token.');
             $this->rejectSubmission($form);

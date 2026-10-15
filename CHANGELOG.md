@@ -1,5 +1,13 @@
 # Changelog
 
+# 1.0.3
+
+## 2026-10-15
+
+1. [](#bugfix)
+   * Validate the submitted timing token instead of falling back to a timestamp generated during POST initialization when the hidden field is missing.
+   * Clear cached form definitions after package installation and updates via Grav's installer hooks.
+
 # 1.0.2
 
 ## 2026-08-31

@@ -1,7 +1,7 @@
 name: Form Shield
 slug: form-shield
 type: plugin
-version: 1.0.2
+version: 1.0.3
 description: Adds local, layered spam protection to Grav forms.
 icon: shield
 author:
